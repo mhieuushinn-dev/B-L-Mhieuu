@@ -1,44 +1,80 @@
-name: ShinnH4K
-options:
-  bundleIdPrefix: com.shinn
-  deploymentTarget:
-    iOS: "17.0"
-  createIntermediateGroups: true
+name: Build ShinnH4K IPA
 
-settings:
-  base:
-    SWIFT_VERSION: "5.0"
-    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-    CODE_SIGN_IDENTITY: ""
-    CODE_SIGNING_REQUIRED: "NO"
-    CODE_SIGNING_ALLOWED: "NO"
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
 
-targets:
-  ShinnH4K:
-    type: application
-    platform: iOS
-    deploymentTarget: "17.0"
-    sources:
-      - path: .
-        excludes:
-          - .github
-          - build
-          - ShinnH4K.xcodeproj
-          - "*.3105"
-    settings:
-      base:
-        PRODUCT_NAME: ShinnH4K
-        PRODUCT_BUNDLE_IDENTIFIER: com.apple.mobile.MobileHouseArrest
-        INFOPLIST_FILE: Info.plist
-        SWIFT_OBJC_BRIDGING_HEADER: ShinnH4K-Bridging-Header.h
-        HEADER_SEARCH_PATHS:
-          - "$(SRCROOT)"
-          - "$(SRCROOT)/exploit"
-          - "$(SRCROOT)/kexploit"
-          - "$(SRCROOT)/helpers"
-        OTHER_LDFLAGS: "-lz"
-        OTHER_CFLAGS: "-Wno-everything"
-        ENABLE_BITCODE: "NO"
-        TARGETED_DEVICE_FAMILY: "1,2"
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "1"
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Debug repo structure
+        run: |
+          echo "========== REPO ROOT =========="
+          ls -la
+          echo ""
+          echo "========== project.yml =========="
+          cat project.yml || echo "MISSING project.yml"
+          echo ""
+          echo "========== Info.plist =========="
+          ls -la Info.plist || echo "MISSING Info.plist"
+          echo ""
+          echo "========== Bridging =========="
+          ls -la ShinnH4K-Bridging-Header.h || echo "MISSING Bridging"
+          echo ""
+          echo "========== exploit/ =========="
+          ls -la exploit/ || echo "MISSING exploit/"
+          echo ""
+          echo "========== kexploit/ =========="
+          ls -la kexploit/ || echo "MISSING kexploit/"
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode Project
+        run: |
+          xcodegen generate --spec project.yml 2>&1
+          echo "========== Exit: $? =========="
+          ls -la ShinnH4K.xcodeproj/ || echo "MISSING xcodeproj"
+          echo "========== pbxproj size =========="
+          wc -c ShinnH4K.xcodeproj/project.pbxproj || echo "MISSING pbxproj"
+
+      - name: Verify scheme
+        run: xcodebuild -list -project ShinnH4K.xcodeproj
+
+      - name: Build App
+        run: |
+          xcodebuild \
+            -project ShinnH4K.xcodeproj \
+            -scheme ShinnH4K \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/ShinnH4K.app Payload/
+          zip -r ShinnH4K.ipa Payload
+          ls -la ShinnH4K.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShinnH4K-IPA
+          path: ShinnH4K.ipa
