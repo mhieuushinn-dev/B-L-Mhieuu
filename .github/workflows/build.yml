@@ -13,33 +13,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          lfs: false
 
-      - name: Cleanup disk space
+      - name: List repo structure
         run: |
-          echo "=== Before cleanup ==="
-          df -h /
-          sudo rm -rf /Applications/Xcode_15.2.app || true
-          sudo rm -rf /Applications/Xcode_15.3.app || true
-          sudo rm -rf ~/Library/Developer/Xcode/DerivedData || true
-          sudo rm -rf ~/Library/Developer/CoreSimulator || true
-          rm -rf $HOME/.gradle || true
-          echo "=== After cleanup ==="
-          df -h /
-
-      - name: Show environment
-        run: |
-          xcodebuild -version
           echo "=== Repo root ==="
           ls -la
+          echo ""
           echo "=== exploit/ ==="
-          ls -la exploit/ 2>/dev/null || echo "MISSING exploit/"
+          ls -la exploit/ 2>/dev/null || echo "MISSING"
+          echo ""
           echo "=== kexploit/ ==="
-          ls -la kexploit/ 2>/dev/null || echo "MISSING kexploit/"
-          echo "=== project.yml ==="
-          ls -la project.yml 2>/dev/null || echo "MISSING project.yml"
+          ls -la kexploit/ 2>/dev/null || echo "MISSING"
+          echo ""
+          echo "=== helpers/ ==="
+          ls -la helpers/ 2>/dev/null || echo "MISSING"
+
+      - name: Show project.yml
+        run: |
+          echo "=== project.yml content ==="
+          cat project.yml
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -47,12 +39,16 @@ jobs:
       - name: Generate Xcode project
         run: |
           xcodegen generate
-          ls -la ShinnH4K.xcodeproj/ || echo "MISSING xcodeproj"
+          echo "=== After generate ==="
+          ls -la
+          echo ""
+          echo "=== pbxproj head ==="
+          head -50 ShinnH4K.xcodeproj/project.pbxproj || echo "MISSING pbxproj"
 
       - name: Verify scheme
         run: xcodebuild -list -project ShinnH4K.xcodeproj
 
-      - name: Archive (unsigned)
+      - name: Archive
         run: |
           set -o pipefail
           xcodebuild archive \
@@ -65,23 +61,13 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            IPHONEOS_DEPLOYMENT_TARGET=17.0 \
-            -quiet
-
-      - name: List archive contents
-        if: always()
-        run: |
-          find build/ShinnH4K.xcarchive -maxdepth 4 2>/dev/null || echo "No archive"
+            PROVISIONING_PROFILE_SPECIFIER=""
 
       - name: Package IPA
+        if: success()
         run: |
-          APP_PATH=$(find build/ShinnH4K.xcarchive/Products/Applications -maxdepth 1 -name "*.app" -type d 2>/dev/null | head -1)
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: No .app found"
-            find build/ShinnH4K.xcarchive -maxdepth 5 2>/dev/null
-            exit 1
-          fi
+          APP_PATH=$(find build/ShinnH4K.xcarchive/Products/Applications -maxdepth 1 -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then exit 1; fi
           APP_NAME=$(basename "$APP_PATH" .app)
           mkdir -p build/Payload
           cp -R "$APP_PATH" build/Payload/
@@ -93,9 +79,9 @@ jobs:
           ls -la build/ShinnH4K.ipa
 
       - name: Upload IPA
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ShinnH4K-unsigned-ipa
           path: build/ShinnH4K.ipa
           retention-days: 30
-          if-no-files-found: error
