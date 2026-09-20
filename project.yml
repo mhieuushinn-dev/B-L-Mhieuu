@@ -1,0 +1,36 @@
+name: ShinnH4K
+options:
+  bundleIdPrefix: com.shinn
+targets:
+  ShinnH4K:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: .
+        excludes:
+          - .github
+          - build
+          - ShinnH4K.xcodeproj
+          - ShinnH4K
+          - "bad_query.c+ bad_query.h"
+          - kexploit
+          - kexploit_opa334.m
+          - offsets.m
+          - vnode.m
+          - krw.m
+          - kutils.m
+          - sandbox_escape.m
+          - mcm_bridge.m
+          - AntiDetection.m
+          - bad_query.c
+          - "*.m"
+          - "*.h"
+    settings:
+      CODE_SIGN_STYLE: Manual
+      CODE_SIGN_IDENTITY: ""
+      DEVELOPMENT_TEAM: ""
+      INFOPLIST_FILE: Info.plist
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      SWIFT_OBJC_BRIDGING_HEADER: ShinnH4K-Bridging-Header.h
+
