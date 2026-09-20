@@ -7,9 +7,6 @@ on:
       - main
       - master
 
-permissions:
-  contents: read
-
 jobs:
   build:
     runs-on: macos-14
@@ -18,43 +15,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Debug repo structure
+      - name: Debug
         run: |
-          echo "========== REPO ROOT =========="
+          echo "=== Root ==="
           ls -la
-          echo ""
-          echo "========== project.yml =========="
-          cat project.yml || echo "MISSING project.yml"
-          echo ""
-          echo "========== Info.plist =========="
-          ls -la Info.plist || echo "MISSING Info.plist"
-          echo ""
-          echo "========== Bridging =========="
-          ls -la ShinnH4K-Bridging-Header.h || echo "MISSING Bridging"
-          echo ""
-          echo "========== exploit/ =========="
-          ls -la exploit/ || echo "MISSING exploit/"
-          echo ""
-          echo "========== kexploit/ =========="
-          ls -la kexploit/ || echo "MISSING kexploit/"
+          echo "=== project.yml ==="
+          cat project.yml
+          echo "=== exploit/ ==="
+          ls -la exploit/ || echo "MISSING"
+          echo "=== kexploit/ ==="
+          ls -la kexploit/ || echo "MISSING"
 
       - name: Install XcodeGen
-        run: |
-          brew install xcodegen
-          xcodegen --version
+        run: brew install xcodegen
 
-      - name: Generate Xcode Project
+      - name: Generate project
         run: |
-          xcodegen generate --spec project.yml 2>&1
-          echo "========== Exit: $? =========="
-          ls -la ShinnH4K.xcodeproj/ || echo "MISSING xcodeproj"
-          echo "========== pbxproj size =========="
-          wc -c ShinnH4K.xcodeproj/project.pbxproj || echo "MISSING pbxproj"
+          xcodegen generate
+          ls -la ShinnH4K.xcodeproj/
+          wc -l ShinnH4K.xcodeproj/project.pbxproj
 
-      - name: Verify scheme
+      - name: List schemes
         run: xcodebuild -list -project ShinnH4K.xcodeproj
 
-      - name: Build App
+      - name: Build
         run: |
           xcodebuild \
             -project ShinnH4K.xcodeproj \
@@ -64,6 +48,8 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
             build
 
       - name: Package IPA
@@ -73,7 +59,7 @@ jobs:
           zip -r ShinnH4K.ipa Payload
           ls -la ShinnH4K.ipa
 
-      - name: Upload IPA
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: ShinnH4K-IPA
